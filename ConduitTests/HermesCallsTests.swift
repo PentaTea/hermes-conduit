@@ -710,6 +710,13 @@ extension VoiceConversationControllerTests {
         XCTAssertTrue(HermesNativeCallStorefront.allowsCalls("USA"))
         XCTAssertTrue(HermesNativeCallStorefront.allowsCalls(nil))
         XCTAssertFalse(HermesNativeCallStorefront.allowsCalls("CHN"))
+        // An install keeps the App Store it first knew, whichever account
+        // is signed in later.
+        XCTAssertEqual(HermesNativeCallStorefront.decided(stored: "USA", reported: "JPN"), "USA")
+        XCTAssertEqual(HermesNativeCallStorefront.decided(stored: "JPN", reported: "USA"), "JPN")
+        XCTAssertEqual(HermesNativeCallStorefront.decided(stored: nil, reported: "USA"), "USA", "The first answer decides")
+        XCTAssertEqual(HermesNativeCallStorefront.decided(stored: "", reported: "USA"), "USA", "Empty: no App Store answer yet")
+        XCTAssertNil(HermesNativeCallStorefront.decided(stored: "", reported: nil), "No answer yet: decided later")
         XCTAssertEqual(HermesCallCopy.callerName(profile: nil, mainName: nil, title: nil), "Hermes")
         XCTAssertEqual(HermesCallCopy.callerName(profile: nil, mainName: "Ada", title: "Check \"it\""), "Hermes · Check 'it'")
     }

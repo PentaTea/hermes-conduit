@@ -22,8 +22,8 @@
 //  (designs/hermes-calls-watch.md); with relay 0.11+ a Watch answer's
 //  start comes with the stop, and this phone hands the Watch call its
 //  session through the relay (HermesRingHandoff). CallKit is off in China's App
-//  Store, so there Conduit never registers a PushKit token and calls keep
-//  arriving as notifications.
+//  Store, so an install from there never registers a PushKit token and calls
+//  keep arriving as notifications.
 //  (designs/hermes-calls-you-449.md)
 //
 
@@ -39,6 +39,10 @@ import UserNotifications
 private let nativeCallsLogger = Logger(subsystem: "com.milim.relay", category: "HermesCalls")
 
 /// Where calls may ring: CallKit isn't allowed in China's App Store.
+///
+/// An install goes by the first App Store StoreKit reports to it, kept
+/// until Conduit is deleted, since StoreKit can't say where a copy came
+/// from. Signing in to another account later doesn't change it.
 enum HermesNativeCallStorefront {
     static let defaultsKey = "hermesCalls.storefront"
 
@@ -46,6 +50,12 @@ enum HermesNativeCallStorefront {
     /// App Store account) rings.
     static func allowsCalls(_ countryCode: String?) -> Bool {
         countryCode?.uppercased() != "CHN"
+    }
+
+    /// The App Store this install goes by: the one it already has, else
+    /// the one StoreKit reports now. Nil (or empty) stored: none yet.
+    static func decided(stored: String?, reported: String?) -> String? {
+        stored.flatMap { $0.isEmpty ? nil : $0 } ?? reported
     }
 }
 
@@ -197,9 +207,9 @@ final class HermesNativeCalls: NSObject {
     private func storefrontChanged(_ countryCode: String?) {
         let defaults = UserDefaults.standard
         let key = HermesNativeCallStorefront.defaultsKey
-        // No answer (no App Store account, or offline): the last one known
-        // stands.
-        let known = countryCode ?? defaults.string(forKey: key).flatMap { $0.isEmpty ? nil : $0 }
+        // The first App Store known stands for this install's life. Until
+        // there is one (no App Store account, or offline), nothing is kept.
+        let known = HermesNativeCallStorefront.decided(stored: defaults.string(forKey: key), reported: countryCode)
         defaults.set(known ?? "", forKey: key)
         if Self.ringingBuilt, Self.ringingWanted, HermesNativeCallStorefront.allowsCalls(known) {
             startRinging()
